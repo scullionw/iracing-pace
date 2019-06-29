@@ -2,16 +2,13 @@ import requests
 import re
 import urllib.parse
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
-import pandas as pd
 import sys
 from config import credentials
 
-SUBSESSION = 27571384
-FASTEST_DELTA = 5
-MIN_POSITION = 10
+SUBSESSION = 26721520
+FASTEST_DELTA = 10
+MIN_POSITION = 5
 URL_IRACING_LOGIN = 'https://members.iracing.com/membersite/Login'
 URL_API = f"https://members.iracing.com/membersite/member/EventResult.do?&subsessionid={SUBSESSION}"
 NIMROD_URL = 'https://www.nimrod-messenger.io/api/v1/message'
@@ -20,14 +17,17 @@ def main():
     with requests.session() as s:
         s.post(URL_IRACING_LOGIN, data=credentials)
         text = s.get(URL_API).text
-        found = re.findall(r"var\sresultOBJ\s*=\s*{([\S\s]*?simSesName:\"RACE\"[\S\s]*?)};", text)
+        found = re.findall(r"var\sresultOBJ\s*=\s*{([\S\s]*?)};", text)
         cleaned = [clean(x) for x in found]
         drivers = [make_dict(x) for x in cleaned]
+        drivers = [driver for driver in drivers if driver['simSesName'] == "\"RACE\""]
         grid = {}
         
         fastest_time = np.inf;
 
         for driver in drivers:
+            print(driver['simSesName'])
+
             name = get_name(driver['displayName'])
             irating = driver['newiRating']
             custid = driver['custid']
