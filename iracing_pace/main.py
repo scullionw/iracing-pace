@@ -55,7 +55,11 @@ def main(args):
     df = pd.DataFrame(dataset)  
 
     sns.set(style="whitegrid")
-    ax = sns.swarmplot(x="Driver", y="Lap Time", data=df)
+    if args.violin:
+        ax = sns.violinplot(x="Driver", y="Lap Time", data=df)
+    else:
+        ax = sns.swarmplot(x="Driver", y="Lap Time", data=df)
+    
     for item in ax.get_xticklabels():
         item.set_rotation(90)
 
@@ -91,5 +95,6 @@ if __name__ == '__main__':
     parser.add_argument('subsession', type=str, help='Subsession ID')
     parser.add_argument('--maxpos', type=int, help='Minimum race position', default=5)
     parser.add_argument('--maxdelta', type=int, help='Maximum lap time delta to fastest lap', default=10)
+    parser.add_argument('--violin', action='store_true', help='Use violin plot instead')
 
     sys.exit(main(parser.parse_args()))
