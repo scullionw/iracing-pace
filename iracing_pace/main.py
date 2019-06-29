@@ -3,37 +3,36 @@ import re
 import urllib.parse
 import pandas as pd
 import seaborn as sns
+import numpy as np
 import sys
 from config import credentials
+import argparse
 
-SUBSESSION = 26721520
-FASTEST_DELTA = 10
-MIN_POSITION = 5
+
 URL_IRACING_LOGIN = 'https://members.iracing.com/membersite/Login'
-URL_API = f"https://members.iracing.com/membersite/member/EventResult.do?&subsessionid={SUBSESSION}"
-NIMROD_URL = 'https://www.nimrod-messenger.io/api/v1/message'
 
-def main():
+def main(args):
+    event_page = f"https://members.iracing.com/membersite/member/EventResult.do?&subsessionid={args.subsession}"
+
     with requests.session() as s:
         s.post(URL_IRACING_LOGIN, data=credentials)
-        text = s.get(URL_API).text
+        text = s.get(event_page).text
         found = re.findall(r"var\sresultOBJ\s*=\s*{([\S\s]*?)};", text)
         cleaned = [clean(x) for x in found]
         drivers = [make_dict(x) for x in cleaned]
         drivers = [driver for driver in drivers if driver['simSesName'] == "\"RACE\""]
-        grid = {}
         
-        fastest_time = np.inf;
+        grid = {}
+        fastest_time = np.inf
 
         for driver in drivers:
-            print(driver['simSesName'])
-
             name = get_name(driver['displayName'])
             irating = driver['newiRating']
             custid = driver['custid']
             pos = driver['finishPos']
-            laps_url = f"https://members.iracing.com/membersite/member/GetLaps?&subsessionid={SUBSESSION}&groupid={custid}&simsesnum=0"
+            laps_url = f"https://members.iracing.com/membersite/member/GetLaps?&subsessionid={args.subsession}&groupid={custid}&simsesnum=0"
             response = s.get(laps_url)
+
             laps = response.json()['lapData']
             lap_arr = []
             
@@ -47,10 +46,10 @@ def main():
 
     dataset = []
     for name, info in grid.items():
-        if int(info['pos']) <= MIN_POSITION:
+        if int(info['pos']) <= args.maxpos:
             *first, last = name.split(" ")
             for lap in info['laps']:
-                if lap < fastest_time + FASTEST_DELTA:
+                if lap < fastest_time + args.maxdelta:
                     dataset.append({'Driver': f"{last} [{info['irating']}]", 'Lap Time': lap})
 
     df = pd.DataFrame(dataset)  
@@ -87,4 +86,10 @@ def get_name(s):
     return urllib.parse.unquote(name)
 
 if __name__ == '__main__':
-    sys.exit(main())
+    parser = argparse.ArgumentParser(description='Analyse pace from iracing race session')
+
+    parser.add_argument('subsession', type=str, help='Subsession ID')
+    parser.add_argument('--maxpos', type=int, help='Minimum race position', default=5)
+    parser.add_argument('--maxdelta', type=int, help='Maximum lap time delta to fastest lap', default=10)
+
+    sys.exit(main(parser.parse_args()))
