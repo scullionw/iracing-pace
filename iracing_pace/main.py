@@ -36,7 +36,7 @@ def main(args):
             laps = response.json()['lapData']
             lap_arr = []
             
-            for a, b in zip(laps, laps[1:]):
+            for a, b in zip(laps[1:], laps[2:]):
                 delta = (b['ses_time'] - a['ses_time']) / 10000
                 if delta < fastest_time:
                     fastest_time = delta
