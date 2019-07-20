@@ -1,6 +1,10 @@
 # iracing-pace
 
-Usage example
+
+![](demo/demo.png)
+
+
+# Usage example
 
 1. Modify config.py.example to contain iRacing username and password
 
