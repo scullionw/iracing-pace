@@ -50,7 +50,7 @@ def main(args):
             *first, last = name.split(" ")
             for lap in info['laps']:
                 if lap < fastest_time + args.maxdelta:
-                    dataset.append({'Driver': f"{last} [{info['irating']}]", 'Lap Time': lap})
+                    dataset.append({'Driver': f"{name}", 'Lap Time': lap})
 
     df = pd.DataFrame(dataset)  
 
@@ -63,8 +63,10 @@ def main(args):
     for item in ax.get_xticklabels():
         item.set_rotation(90)
 
+    title = args.title if args.title else args.subsession
+    ax.set_title(title)
     figure = ax.get_figure()    
-    figure.savefig('pace.png', bbox_inches='tight', dpi=400)
+    figure.savefig(f"{title}.png", bbox_inches='tight', dpi=400)
 
 
 def clean(text):
@@ -96,5 +98,6 @@ if __name__ == '__main__':
     parser.add_argument('--maxpos', type=int, help='Minimum race position', default=5)
     parser.add_argument('--maxdelta', type=int, help='Maximum lap time delta to fastest lap', default=10)
     parser.add_argument('--violin', action='store_true', help='Use violin plot instead')
+    parser.add_argument('--title', type=str, help='Title of race')
 
     sys.exit(main(parser.parse_args()))
