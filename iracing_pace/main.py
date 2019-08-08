@@ -3,16 +3,16 @@ import re
 import urllib.parse
 import pandas as pd
 import seaborn as sns
-import numpy as np
 import sys
-from config import credentials
+from iracing_pace.config import credentials
 import argparse
 
 
-URL_IRACING_LOGIN = 'https://members.iracing.com/membersite/Login'
+URL_IRACING_LOGIN = "https://members.iracing.com/membersite/Login"
+IRACING_EVENT_PAGE = "https://members.iracing.com/membersite/member/EventResult.do?&subsessionid={}"
 
 def main(args):
-    event_page = f"https://members.iracing.com/membersite/member/EventResult.do?&subsessionid={args.subsession}"
+    event_page = IRACING_EVENT_PAGE.format(args.subsession)
 
     with requests.session() as s:
         s.post(URL_IRACING_LOGIN, data=credentials)
@@ -23,7 +23,7 @@ def main(args):
         drivers = [driver for driver in drivers if driver['simSesName'] == "\"RACE\""]
         
         grid = {}
-        fastest_time = np.inf
+        all_lap_times = []
 
         for driver in drivers:
             name = get_name(driver['displayName'])
@@ -38,16 +38,15 @@ def main(args):
             
             for a, b in zip(laps[1:], laps[2:]):
                 delta = (b['ses_time'] - a['ses_time']) / 10000
-                if delta < fastest_time:
-                    fastest_time = delta
+                all_lap_times.append(delta)
                 lap_arr.append(delta)
                 
             grid[name] = {'irating': irating, 'custid': custid, 'pos': pos, 'laps': lap_arr}
 
+    fastest_time = min(all_lap_times)
     dataset = []
     for name, info in grid.items():
         if int(info['pos']) <= args.maxpos:
-            *first, last = name.split(" ")
             for lap in info['laps']:
                 if lap < fastest_time + args.maxdelta:
                     dataset.append({'Driver': f"{name}", 'Lap Time': lap})
