@@ -25,5 +25,5 @@ if __name__ == '__main__':
     parser.add_argument('--maxdelta', type=int, help='Maximum lap time delta to fastest lap', default=10)
     parser.add_argument('--violin', action='store_true', help='Use violin plot instead')
     parser.add_argument('--title', type=str, help='Title of race')
-    
+
     sys.exit(main(parser.parse_args()))
