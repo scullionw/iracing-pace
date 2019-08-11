@@ -1,10 +1,18 @@
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
+
+class EmptyResults(Exception):
+    pass
 
 class LapSwarm:
     
     def __init__(self, results, maxpos, maxdelta):
         self.grid, self.all_lap_times = results
+
+        if len(self.grid) == 0 or len(self.all_lap_times) == 0:
+            raise EmptyResults
+
         fastest_time = min(self.all_lap_times)
         dataset = []
         for name, info in self.grid.items():
@@ -16,7 +24,7 @@ class LapSwarm:
         self.df = pd.DataFrame(dataset)
 
 
-    def export_plot(self, file_path, title, violin=False):
+    def create_plot(self, title, violin=False):
         sns.set(style="whitegrid")
 
         if violin:
@@ -28,8 +36,16 @@ class LapSwarm:
             item.set_rotation(90)
 
         ax.set_title(title)
-        figure = ax.get_figure()    
-        figure.savefig(file_path, bbox_inches='tight', dpi=400)
+        
+        return ax
+        
+
+def export_plot(ax, file_path):
+    figure = ax.get_figure()    
+    figure.savefig(file_path, bbox_inches='tight', dpi=400)
+
+def interactive_plot(ax):
+    plt.show()
 
    
 
