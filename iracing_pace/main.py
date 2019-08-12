@@ -1,30 +1,29 @@
 import argparse
 import sys
 from pathlib import Path
-from iracing_web_api import iRacingClient, LoginFailed
 from lapswarm import LapSwarm, EmptyResults, export_plot, interactive_plot
-from credentials import Credentials, reset_credentials
+from results import results
 
 
 
 
 def main(args):
 
-    if args.reset:
-        reset_credentials('iracing')
+    # if args.reset:
+    #     reset_credentials('iracing')
 
-    credentials = Credentials('iracing')
-    username, password = credentials.get()
+    # credentials = Credentials('iracing')
+    # username, password = credentials.get()
     
-    try:
-        iracing = iRacingClient(username, password)
-    except LoginFailed:
-        print("Login failed! Please check username and password.")
-        sys.exit(1)
-    else:
-        credentials.persist()
+    # try:
+    #     iracing = iRacingClient(username, password)
+    # except LoginFailed:
+    #     print("Login failed! Please check username and password.")
+    #     sys.exit(1)
+    # else:
+    #     credentials.persist()
 
-    results = iracing.subsession_results(args.subsession)
+    # results = iracing.subsession_results(args.subsession)
 
     try:
         swarm = LapSwarm(results, args.maxpos, args.maxdelta)
