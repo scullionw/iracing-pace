@@ -2,8 +2,9 @@ from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QFileDialog, QHBoxLayout, QRadioButton, QButtonGroup, QSpinBox, QProgressBar
 from pathlib import Path
-from iracing_web_api.iracing_web_api import iRacingClient
-from iracing_pace.lapswarm import LapSwarm
+from iracing_web_api import iRacingClient, LoginFailed
+from iracing_pace.lapswarm import LapSwarm, EmptyResults, export_plot, interactive_plot
+from iracing_pace.credentials import Credentials, reset_credentials
 import sys
 import os
 
@@ -105,12 +106,25 @@ class MainWindow(QWidget):
 
     def go(self):
         self.progress_bar.setValue(80)
-        credentials = {"username": self.email.text(), "password": self.password.text()}
-        iracing = iRacingClient(credentials)
+
+
+        iracing = iRacingClient(self.email.text(), self.password.text())
         results = iracing.subsession_results(int(self.subsession.text()))
         swarm = LapSwarm(results, self.max_drivers.value(), self.outlier_delta.value())
         title = self.save_location.stem
-        swarm.export_plot(str(self.save_location), title, False)
+
+        ax = swarm.create_plot(title, False)
+        
+        if True:
+            interactive_plot(ax)
+        else:
+            file_path = str(self.save_location)
+            export_plot(ax, file_path)
+
+
+
+
+
         self.progress_bar.setValue(100)
 
 if __name__ == '__main__':
