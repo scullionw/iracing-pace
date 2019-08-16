@@ -16,6 +16,7 @@ pywin32-ctypes = "^0.2.0"
 pefile = "^2019.4"
 iracing-web-api = { git = "https://github.com/scullionw/iracing-web-api.git" }
 keyring = "^19.0"
+pendulum = "^2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

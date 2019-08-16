@@ -1,6 +1,8 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+import pendulum
 
 class EmptyResults(Exception):
     pass
@@ -25,8 +27,9 @@ class LapSwarm:
 
 
     def create_plot(self, title, violin=False):
+        plt.figure()
         sns.set(style="whitegrid")
-
+        
         if violin:
             ax = sns.violinplot(x="Driver", y="Lap Time", data=self.df)
         else:
@@ -35,10 +38,19 @@ class LapSwarm:
         for item in ax.get_xticklabels():
             item.set_rotation(90)
 
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: format_laptime(y))) 
+
         ax.set_title(title)
         
         return ax
         
+def format_laptime(t):
+    it = pendulum.duration(seconds=t)
+    minutes = it.minutes
+    seconds = it.remaining_seconds
+    milliseconds = it.microseconds // 1000
+    return f"{minutes}:{seconds:02}.{milliseconds:03}"
+
 
 def export_plot(ax, file_path):
     figure = ax.get_figure()    

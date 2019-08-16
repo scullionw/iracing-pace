@@ -1,9 +1,11 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import (
+    Qt, QThread, QCoreApplication, pyqtSignal
+)
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit,
     QFileDialog, QHBoxLayout, QRadioButton, QButtonGroup,
-    QSpinBox, QProgressBar, QCheckBox
+    QSpinBox, QProgressBar, QCheckBox, QMessageBox
 )
 from pathlib import Path
 from iracing_web_api import iRacingClient, LoginFailed
@@ -11,6 +13,7 @@ from iracing_pace.lapswarm import LapSwarm, EmptyResults, export_plot, interacti
 from iracing_pace import credentials
 import sys
 import os
+from dataclasses import dataclass
 
 def main():
     appctxt = ApplicationContext()
@@ -26,7 +29,7 @@ def main():
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-
+        
         self.save_location = None
         self.layout = QVBoxLayout()
 
@@ -35,9 +38,8 @@ class MainWindow(QWidget):
         self.create_plot_type_selection()
         self.create_mode_selection()
         self.create_spinbox_settings()
-        self.create_file_selection()
         self.create_title_box()
-        self.create_go_button()
+        self.create_run_button()
         self.create_progress_bar()
 
         # Window settings
@@ -50,10 +52,9 @@ class MainWindow(QWidget):
         self.password.setEchoMode(QLineEdit.Password)
 
         user_pass = credentials.retrieve('iracing')
-        if user_pass is None:
-            self.email.setPlaceholderText("Email")
-            self.password.setPlaceholderText("Password")
-        else:
+        self.email.setPlaceholderText("Email")
+        self.password.setPlaceholderText("Password")
+        if user_pass is not None:
             username, password = user_pass
             self.email.setText(username)
             self.password.setText(password)
@@ -64,6 +65,7 @@ class MainWindow(QWidget):
     def create_subsession_box(self):
         self.subsession = QLineEdit()
         self.subsession.setPlaceholderText("Subsession ID (ie. 27983466)")
+        self.subsession.setToolTip("Same as the split number when hovering on results icon. Also found in URL of results page.")
         self.layout.addWidget(self.subsession)
 
     def create_title_box(self):
@@ -86,29 +88,15 @@ class MainWindow(QWidget):
 
     def create_mode_selection(self):
         radio_buttons = [QRadioButton("Save to file"), QRadioButton("Interactive")]
-        slots = [self.file_mode_selected, self.interactive_mode_selected]
         button_layout = QHBoxLayout()
         self.mode_group = QButtonGroup()
 
         radio_buttons[0].setChecked(True)
         for index, button in enumerate(radio_buttons):
-            button.toggled.connect(slots[index])
             button_layout.addWidget(button)
             self.mode_group.addButton(button, index)
 
         self.layout.addLayout(button_layout)
-
-    def interactive_mode_selected(self, selected):
-        if selected:
-            self.chosen_file_name.hide()
-            self.file_select_button.hide()
-            self.title.show()
-    
-    def file_mode_selected(self, selected):
-        if selected:
-            self.chosen_file_name.show()
-            self.file_select_button.show()
-            self.title.hide()
 
     def create_spinbox_settings(self):
         self.max_drivers = QSpinBox()
@@ -125,22 +113,12 @@ class MainWindow(QWidget):
             lo.addWidget(QLabel(i))
             lo.addWidget(opt)
             self.layout.addLayout(lo)
-        
-    def create_file_selection(self):
-        self.chosen_file_name = QLabel("Please choose file save location.")
-        self.chosen_file_name.setWordWrap(True)
-        self.file_select_button = QPushButton('Select save location')
-        self.file_select_button.clicked.connect(self.query_save_location)
-        file_selection_layout = QHBoxLayout()
-        file_selection_layout.addWidget(self.file_select_button)
-        file_selection_layout.addWidget(self.chosen_file_name)
-        self.layout.addLayout(file_selection_layout)
     
-    def create_go_button(self):
-        go_button = QPushButton('Go!')
-        go_button.clicked.connect(self.go)
-        self.layout.addWidget(go_button)
-        self.layout.setAlignment(go_button, Qt.AlignHCenter)
+    def create_run_button(self):
+        run_button = QPushButton('Run!')
+        run_button.clicked.connect(self.run)
+        self.layout.addWidget(run_button)
+        self.layout.setAlignment(run_button, Qt.AlignHCenter)
     
     def create_progress_bar(self):
         self.progress_bar = QProgressBar()
@@ -151,30 +129,97 @@ class MainWindow(QWidget):
     def query_save_location(self):
         chosen_filename = QFileDialog.getSaveFileName(self, 'Choose file location for pace graph', os.getcwd(), 'PNG (*.png)')[0]
         self.save_location = Path(chosen_filename)
-        self.chosen_file_name.setText(self.save_location.name)
+
+    def warn(self, message):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(message)
+        msg.setWindowTitle("Error!")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
 
 
-    def go(self):
+    def run(self):
         self.progress_bar.setValue(80)
 
-        iracing = iRacingClient(self.email.text(), self.password.text())
-        results = iracing.subsession_results(int(self.subsession.text()))
-        swarm = LapSwarm(results, self.max_drivers.value(), self.outlier_delta.value())
+        if self.mode_group.checkedId() == 0:
+            self.query_save_location()
 
-        if self.mode_group.checkedId() == 1:
-            title = self.title.text()
-            ax = swarm.create_plot(title, self.plot_type_group.checkedId() == 1)
+        config = WorkerConfig(
+            self.subsession.text(),
+            self.email.text(),
+            self.password.text(),
+            self.max_drivers.value(),
+            self.outlier_delta.value(),
+            self.mode_group.checkedId() == 1,
+            self.plot_type_group.checkedId() == 1,
+            self.title.text(),
+            self.save_location
+        )
+
+        self.worker = Worker(config)
+        self.worker.finished.connect(lambda: self.progress_bar.setValue(100))
+        self.worker.my_signal.connect(self.warn)
+        self.worker.start()
+
+    
+        
+@dataclass
+class WorkerConfig:
+    subsession: str
+    email: str
+    password: str
+    max_drivers: int
+    outlier_delta: int
+    interactive: bool
+    violin: bool
+    title: str
+    save_location: Path
+
+class Worker(QThread):
+
+    my_signal = pyqtSignal(str)
+
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+    def run(self):
+        if self.config.subsession == "":
+            self.my_signal.emit("Please enter a subsession value.")
+            return
+
+        try:
+            iracing = iRacingClient(self.config.email, self.config.password)
+        except LoginFailed:
+            self.my_signal.emit("Login failed! Please check username and password.")
+            return
+        else:
+            credentials.persist('iracing', self.config.email, self.config.password)
+
+
+        try:
+            subsession_number = int(self.config.subsession)
+        except ValueError:
+            self.my_signal.emit("Bad subsession ID format, should contain only numeric values (ie. 27983466)")
+            return
+        
+        results = iracing.subsession_results(subsession_number)
+
+        try:
+            swarm = LapSwarm(results, self.config.max_drivers, self.config.outlier_delta)
+        except EmptyResults:
+            self.my_signal.emit("No subsession results, please check subsession ID.")
+            return
+        
+        ax = swarm.create_plot(self.config.title, self.config.violin)
+
+        if self.config.interactive:
             interactive_plot(ax)
         else:
-            if self.save_location is None:
-                self.query_save_location()
-            
-            title = self.save_location.stem
-            ax = swarm.create_plot(title, self.plot_type_group.checkedId() == 1)
             file_path = str(self.save_location)
             export_plot(ax, file_path)
 
-        self.progress_bar.setValue(100)
 
 if __name__ == '__main__':
     sys.exit(main())
