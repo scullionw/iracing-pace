@@ -1,10 +1,14 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QFileDialog, QHBoxLayout, QRadioButton, QButtonGroup, QSpinBox, QProgressBar
+from PyQt5.QtWidgets import (
+    QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit,
+    QFileDialog, QHBoxLayout, QRadioButton, QButtonGroup,
+    QSpinBox, QProgressBar, QCheckBox
+)
 from pathlib import Path
 from iracing_web_api import iRacingClient, LoginFailed
 from iracing_pace.lapswarm import LapSwarm, EmptyResults, export_plot, interactive_plot
-from iracing_pace.credentials import Credentials, reset_credentials
+from iracing_pace import credentials
 import sys
 import os
 
@@ -27,12 +31,22 @@ class MainWindow(QWidget):
         self.save_location = None
         layout = QVBoxLayout()
 
+
         # Create line edits
         self.email = QLineEdit()
-        self.email.setPlaceholderText("Email")
         self.password = QLineEdit()
         self.password.setEchoMode(QLineEdit.Password)
-        self.password.setPlaceholderText("Password")
+
+        user_pass = credentials.retrieve('iracing')
+        if user_pass is None:
+            self.email.setPlaceholderText("Email")
+            self.password.setPlaceholderText("Password")
+        else:
+            username, password = user_pass
+            self.email.setText(username)
+            self.password.setText(password)
+            
+        
         self.subsession = QLineEdit()
         self.subsession.setPlaceholderText("Subsession ID (ie. 27983466)")
 
@@ -54,6 +68,7 @@ class MainWindow(QWidget):
     
         layout.addLayout(button_layout)
 
+        self.interactive = QCheckBox()
 
         self.max_drivers = QSpinBox()
         self.max_drivers.setValue(10)
@@ -115,7 +130,7 @@ class MainWindow(QWidget):
 
         ax = swarm.create_plot(title, False)
         
-        if True:
+        if self.interactive.isChecked():
             interactive_plot(ax)
         else:
             file_path = str(self.save_location)

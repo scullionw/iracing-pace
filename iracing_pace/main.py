@@ -3,18 +3,18 @@ import sys
 from pathlib import Path
 from iracing_web_api import iRacingClient, LoginFailed
 from lapswarm import LapSwarm, EmptyResults, export_plot, interactive_plot
-from credentials import Credentials, reset_credentials
-
-
+import credentials
 
 
 def main(args):
-
     if args.reset:
-        reset_credentials('iracing')
+        credentials.reset('iracing')
 
-    credentials = Credentials('iracing')
-    username, password = credentials.get()
+    user_pass = credentials.retrieve('iracing')
+    if user_pass is None:
+        username, password = credentials.query('iracing')
+    else:
+        username, password = user_pass
     
     try:
         iracing = iRacingClient(username, password)
@@ -22,7 +22,7 @@ def main(args):
         print("Login failed! Please check username and password.")
         sys.exit(1)
     else:
-        credentials.persist()
+        credentials.persist('iracing', username, password)
 
     results = iracing.subsession_results(args.subsession)
 
@@ -34,8 +34,6 @@ def main(args):
 
     title = args.title if args.title else args.subsession
     
-
-
     ax = swarm.create_plot(title, args.violin)
     
     if args.interactive:

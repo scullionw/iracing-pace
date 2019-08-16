@@ -1,31 +1,24 @@
 import keyring
 import getpass
 
-class Credentials:
+def query(namespace):
+    print("Username: ", end='')
+    username = input()
+    password = getpass.getpass()
+    return username, password
 
-    def __init__(self, namespace):
-        self.namespace = namespace
-        self.username, self.password = self.query()
-
-    def query(self):
-        username = keyring.get_password(self.namespace, 'username')
-        if username is None:
-            print("Username: ", end='')
-            username = input()
-            password = getpass.getpass()
-        else:
-            password =  keyring.get_password(self.namespace, username)
-            
+def retrieve(namespace):
+    username = keyring.get_password(namespace, 'username')
+    if username is not None:
+        password = keyring.get_password(namespace, username)
         return username, password
-    
-    def get(self):
-        return self.username, self.password
+    return None
 
-    def persist(self):
-        keyring.set_password(self.namespace, 'username', self.username)
-        keyring.set_password(self.namespace, self.username, self.password)
+def persist(namespace, username, password):
+    keyring.set_password(namespace, 'username', username)
+    keyring.set_password(namespace, username, password)
 
-def reset_credentials(namespace):
+def reset(namespace):
     username = keyring.get_password(namespace, 'username')
     if username is not None:
         keyring.delete_password(namespace, 'username')
