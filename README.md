@@ -1,32 +1,54 @@
 # iracing-pace
 
-
+![](demo/gui.png)
 ![](demo/demo.png)
 
+# GUI
 
-# Usage example
+## Installation
 
-1. Modify config.py.example to contain iRacing username and password
+1. Grab either the installer or standalone binary from https://github.com/scullionw/iracing-pace/releases
 
-2. Rename to config.py
+## Running GUI from source
 
-3. Install python 3
+1. Install python 3
 
-4. Install poetry (https://poetry.eustace.io/docs/)
+2. Install poetry (https://poetry.eustace.io/docs/)
 
-5. Get iracing subsession id from results page (in url, or hovering on results icon)
+3. Install dependencies
 
-5. Example
+        poetry install
+
+4. Navigate to gui directory
+        
+        cd iracing_pace\gui
+
+5. Run build system
+
+        poetry run fbs run
+
+
+# Command line tool
+
+## Usage example
+
+1. Install python 3
+
+2. Install poetry (https://poetry.eustace.io/docs/)
+
+3. Get iracing subsession id from results page (in url, or hovering on results icon)
+
+4. Example
 
         poetry run python iracing_pace/main.py 27808306 --maxpos 10 --maxdelta 3 --title "Tsukuba Circuit"
 
 
 
 # Parameters
-        C:\Users\LUNA\Desktop\Local Projects\iracing-pace>poetry run python iracing_pace\main.py -h
+        λ poetry run python iracing_pace/main.py --help
         usage: main.py [-h] [--maxpos MAXPOS] [--maxdelta MAXDELTA] [--violin]
-                    [--title TITLE]
-                    subsession
+                [--reset] [--interactive] [--title TITLE]
+                subsession
 
         Analyse pace from iracing race session
 
@@ -38,4 +60,6 @@
         --maxpos MAXPOS      Minimum race position
         --maxdelta MAXDELTA  Maximum lap time delta to fastest lap
         --violin             Use violin plot instead
+        --reset              Reset credentials
+        --interactive        Interactive graph instead of saving to file
         --title TITLE        Title of race
