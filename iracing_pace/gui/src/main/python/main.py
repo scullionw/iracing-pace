@@ -1,6 +1,6 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtCore import (
-    Qt, QThread, QCoreApplication, pyqtSignal
+    Qt, QThread, QCoreApplication, QTimer, pyqtSignal
 )
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit,
@@ -115,16 +115,26 @@ class MainWindow(QWidget):
             self.layout.addLayout(lo)
     
     def create_run_button(self):
-        run_button = QPushButton('Run!')
-        run_button.clicked.connect(self.run)
-        self.layout.addWidget(run_button)
-        self.layout.setAlignment(run_button, Qt.AlignHCenter)
+        self.run_button = QPushButton('Run!')
+        self.run_button.clicked.connect(self.run)
+        self.layout.addWidget(self.run_button)
+        self.layout.setAlignment(self.run_button, Qt.AlignHCenter)
     
     def create_progress_bar(self):
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
+        self.progress_bar_timer = QTimer()
         self.layout.addWidget(self.progress_bar)
+
+    def progress_bar_update(self):
+        current_value = self.progress_bar.value()
+        if current_value < 98:
+            self.progress_bar.setValue(current_value + 1)
+            self.progress_bar_timer.setInterval(10 + current_value)
+        else:
+            self.progress_bar_timer.stop()
+
     
     def query_save_location(self):
         chosen_filename = QFileDialog.getSaveFileName(self, 'Choose file location for pace graph', os.getcwd(), 'PNG (*.png)')[0]
@@ -140,8 +150,6 @@ class MainWindow(QWidget):
 
 
     def run(self):
-        self.progress_bar.setValue(80)
-
         if self.mode_group.checkedId() == 0:
             self.query_save_location()
 
@@ -158,9 +166,36 @@ class MainWindow(QWidget):
         )
 
         self.worker = Worker(config)
-        self.worker.finished.connect(lambda: self.progress_bar.setValue(100))
+        self.worker.finished.connect(self.worker_finished)
         self.worker.my_signal.connect(self.warn)
+        self.worker.plot_ready.connect(self.show_plot)
+        self.run_button.setEnabled(False)
+
+        self.progress_bar_timer.timeout.connect(self.progress_bar_update)
+        self.progress_bar_timer.start(10)
+
         self.worker.start()
+
+
+    def worker_finished(self):
+        self.progress_bar.setValue(100)
+        # self.run_button.setEnabled(True)
+
+    def show_plot(self, config, results):
+        """ matplotlib prefers to be on main thread, which is why we don't plot in the worker """
+        try:
+            swarm = LapSwarm(results, config.max_drivers, config.outlier_delta)
+        except EmptyResults:
+            self.warn("No subsession results, please check subsession ID.")
+            return
+        
+        ax = swarm.create_plot(config.title, config.violin)
+
+        if config.interactive:
+            interactive_plot(ax)
+        else:
+            file_path = str(config.save_location)
+            export_plot(ax, file_path)
 
     
         
@@ -179,6 +214,7 @@ class WorkerConfig:
 class Worker(QThread):
 
     my_signal = pyqtSignal(str)
+    plot_ready = pyqtSignal(object, object)
 
     def __init__(self, config):
         super().__init__()
@@ -206,19 +242,21 @@ class Worker(QThread):
         
         results = iracing.subsession_results(subsession_number)
 
-        try:
-            swarm = LapSwarm(results, self.config.max_drivers, self.config.outlier_delta)
-        except EmptyResults:
-            self.my_signal.emit("No subsession results, please check subsession ID.")
-            return
+        # try:
+        #     swarm = LapSwarm(results, self.config.max_drivers, self.config.outlier_delta)
+        # except EmptyResults:
+        #     self.my_signal.emit("No subsession results, please check subsession ID.")
+        #     return
         
-        ax = swarm.create_plot(self.config.title, self.config.violin)
+        # ax = swarm.create_plot(self.config.title, self.config.violin)
 
-        if self.config.interactive:
-            interactive_plot(ax)
-        else:
-            file_path = str(self.save_location)
-            export_plot(ax, file_path)
+        # if self.config.interactive:
+        #     interactive_plot(ax)
+        # else:
+        #     file_path = str(self.save_location)
+        #     export_plot(ax, file_path)
+
+        self.plot_ready.emit(self.config, results)
 
 
 if __name__ == '__main__':
