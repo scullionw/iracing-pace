@@ -13,7 +13,6 @@ from iracing_pace.lapswarm import LapSwarm, EmptyResults, export_plot, interacti
 from iracing_pace import credentials
 import sys
 import os
-from dataclasses import dataclass
 
 def main():
     appctxt = ApplicationContext()
@@ -206,18 +205,20 @@ class MainWindow(QWidget):
 
     
         
-@dataclass
 class WorkerConfig:
-    subsession: str
-    email: str
-    password: str
-    max_drivers: int
-    outlier_delta: int
-    yaxis_delta: int
-    interactive: bool
-    violin: bool
-    title: str
-    save_location: Path
+
+    def __init__(self, subsession, email, password, max_drivers, outlier_delta, yaxis_delta, interactive, violin, title, save_location):
+        self.subsession = subsession
+        self.email = email
+        self.password = password
+        self.max_drivers = max_drivers
+        self.outlier_delta = outlier_delta
+        self.yaxis_delta = yaxis_delta
+        self.interactive = interactive
+        self.violin = violin
+        self.title = title
+        self.save_location = save_location
+
 
 class Worker(QThread):
 

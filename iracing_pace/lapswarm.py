@@ -2,7 +2,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (AutoMinorLocator, MultipleLocator, FuncFormatter)
-import pendulum
 
 class EmptyResults(Exception):
     pass
@@ -51,10 +50,11 @@ class LapSwarm:
         return ax
         
 def format_laptime(t):
-    it = pendulum.duration(seconds=t)
-    minutes = it.minutes
-    seconds = it.remaining_seconds
-    milliseconds = it.microseconds // 1000
+    minutes, remaining_seconds = divmod(t, 60)
+    minutes = int(minutes)
+    seconds, fractional_seconds = divmod(remaining_seconds, 1)
+    seconds = int(seconds)
+    milliseconds = int(1000 * fractional_seconds)
     return f"{minutes}:{seconds:02}.{milliseconds:03}"
 
 

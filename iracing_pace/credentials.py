@@ -1,5 +1,8 @@
 import keyring
 import getpass
+import keyring.backends.Windows
+
+keyring.set_keyring(keyring.backends.Windows.WinVaultKeyring())
 
 def query(namespace):
     print("Username: ", end='')
