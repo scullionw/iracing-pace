@@ -1,7 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import (AutoMinorLocator, MultipleLocator, FuncFormatter)
 import pendulum
 
 class EmptyResults(Exception):
@@ -26,7 +26,7 @@ class LapSwarm:
         self.df = pd.DataFrame(dataset)
 
 
-    def create_plot(self, title, violin=False):
+    def create_plot(self, title, violin=False, y_delta=None):
         plt.figure()
         sns.set(style="whitegrid")
         
@@ -38,8 +38,14 @@ class LapSwarm:
         for item in ax.get_xticklabels():
             item.set_rotation(90)
 
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: format_laptime(y))) 
+        if y_delta is not None:
+            # ax.set_ylim([None,y_max])
+            x1, x2, y1, _ = plt.axis()
+            ax.axis((x1, x2, y1, y1 + y_delta))
 
+        ax.yaxis.set_major_locator(MultipleLocator(.5))
+
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: format_laptime(y))) 
         ax.set_title(title)
         
         return ax
@@ -55,9 +61,13 @@ def format_laptime(t):
 def export_plot(ax, file_path):
     figure = ax.get_figure()    
     figure.savefig(file_path, bbox_inches='tight', dpi=400)
+    plt.clf()
+    plt.cla()
+    plt.close()
 
 def interactive_plot(ax):
     plt.show()
+    
 
    
 

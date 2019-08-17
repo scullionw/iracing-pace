@@ -1,6 +1,6 @@
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from PyQt5.QtCore import (
-    Qt, QThread, QCoreApplication, QTimer, pyqtSignal
+    Qt, QThread, QCoreApplication, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve
 )
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit,
@@ -104,7 +104,7 @@ class MainWindow(QWidget):
         self.outlier_delta = QSpinBox()
         self.outlier_delta.setValue(3)
         self.yaxis_delta = QSpinBox()
-        self.yaxis_delta.setValue(3)
+        self.yaxis_delta.setValue(0)
 
         info = ["Max Drivers", "Outlier Delta", "Y-Axis Delta"]
         options = [self.max_drivers, self.outlier_delta, self.yaxis_delta]
@@ -124,21 +124,13 @@ class MainWindow(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar_timer = QTimer()
         self.layout.addWidget(self.progress_bar)
-
-    def progress_bar_update(self):
-        current_value = self.progress_bar.value()
-        if current_value < 98:
-            self.progress_bar.setValue(current_value + 1)
-            self.progress_bar_timer.setInterval(10 + current_value)
-        else:
-            self.progress_bar_timer.stop()
 
     
     def query_save_location(self):
         chosen_filename = QFileDialog.getSaveFileName(self, 'Choose file location for pace graph', os.getcwd(), 'PNG (*.png)')[0]
         self.save_location = Path(chosen_filename)
+
 
     def warn(self, message):
         msg = QMessageBox()
@@ -152,6 +144,9 @@ class MainWindow(QWidget):
     def run(self):
         if self.mode_group.checkedId() == 0:
             self.query_save_location()
+            if str(self.save_location) == '.':
+                self.warn("You must select save location if using 'Save to file' mode")
+                return
 
         config = WorkerConfig(
             self.subsession.text(),
@@ -159,6 +154,7 @@ class MainWindow(QWidget):
             self.password.text(),
             self.max_drivers.value(),
             self.outlier_delta.value(),
+            self.yaxis_delta.value() if self.yaxis_delta.value() != 0 else None,
             self.mode_group.checkedId() == 1,
             self.plot_type_group.checkedId() == 1,
             self.title.text(),
@@ -171,31 +167,42 @@ class MainWindow(QWidget):
         self.worker.plot_ready.connect(self.show_plot)
         self.run_button.setEnabled(False)
 
-        self.progress_bar_timer.timeout.connect(self.progress_bar_update)
-        self.progress_bar_timer.start(10)
+        self.animation = QPropertyAnimation(self.progress_bar, b"value")
+        self.animation.setDuration(4000)
+        self.animation.setStartValue(0)
+        self.animation.setEndValue(98)
+        self.animation.setEasingCurve(QEasingCurve.OutExpo)
+        self.animation.start()
 
         self.worker.start()
 
 
     def worker_finished(self):
         self.progress_bar.setValue(100)
-        # self.run_button.setEnabled(True)
+        self.animation.stop()
+        self.run_button.setEnabled(True)
+        
 
     def show_plot(self, config, results):
-        """ matplotlib prefers to be on main thread, which is why we don't plot in the worker """
+        # matplotlib prefers to be on main thread, which is why we don't plot in the worker
+
+        self.run_button.setEnabled(False)
+
         try:
             swarm = LapSwarm(results, config.max_drivers, config.outlier_delta)
         except EmptyResults:
             self.warn("No subsession results, please check subsession ID.")
             return
         
-        ax = swarm.create_plot(config.title, config.violin)
+        ax = swarm.create_plot(config.title, config.violin, config.yaxis_delta)
 
         if config.interactive:
             interactive_plot(ax)
         else:
             file_path = str(config.save_location)
             export_plot(ax, file_path)
+
+        self.run_button.setEnabled(True)
 
     
         
@@ -206,6 +213,7 @@ class WorkerConfig:
     password: str
     max_drivers: int
     outlier_delta: int
+    yaxis_delta: int
     interactive: bool
     violin: bool
     title: str
@@ -241,20 +249,6 @@ class Worker(QThread):
             return
         
         results = iracing.subsession_results(subsession_number)
-
-        # try:
-        #     swarm = LapSwarm(results, self.config.max_drivers, self.config.outlier_delta)
-        # except EmptyResults:
-        #     self.my_signal.emit("No subsession results, please check subsession ID.")
-        #     return
-        
-        # ax = swarm.create_plot(self.config.title, self.config.violin)
-
-        # if self.config.interactive:
-        #     interactive_plot(ax)
-        # else:
-        #     file_path = str(self.save_location)
-        #     export_plot(ax, file_path)
 
         self.plot_ready.emit(self.config, results)
 
