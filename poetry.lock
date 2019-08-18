@@ -165,7 +165,7 @@ version = "0.1.0"
 requests = "^2.22"
 
 [package.source]
-reference = "c0a3167035242914d72be428e007bea60afd17c6"
+reference = "bb4b5baa26a4d6bd2abdb4c0853358be8428131b"
 type = "git"
 url = "https://github.com/scullionw/iracing-web-api.git"
 [[package]]
